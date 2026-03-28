@@ -305,6 +305,22 @@
             return [copied, copy];
         };
 
+        const PreInsightNotes = ({ headerData, setHeaderData }) => (
+            <div className="mt-6 p-4 bg-white rounded-lg shadow-md">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Pre-Insights Notes <span className="font-normal text-gray-500">(for additional AI analysis and emphasis)</span>
+                </label>
+                <textarea
+                    name="notes"
+                    rows={3}
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm resize-y"
+                    placeholder="Enter any additional context or emphasis for the AI..."
+                    value={headerData.notes}
+                    onChange={e => setHeaderData(prev => ({ ...prev, notes: e.target.value }))}
+                />
+            </div>
+        );
+
         const InsightBox = ({ title, iconName, text, loading }) => {
             const [copied, copy] = useCopyToClipboard();
             return (
@@ -323,19 +339,16 @@
                             {copied ? <Icon name="Check" className="text-green-500" /> : <Icon name="Clipboard" />}
                         </button>
                     </div>
-                    <div className="w-full h-36 bg-gray-50 rounded-md p-2 border border-gray-200">
+                    <div className="w-full bg-gray-50 rounded-md p-3 border border-gray-200 min-h-[3rem]">
                         {loading ? (
-                            <div className="flex items-center justify-center h-full">
+                            <div className="flex items-center py-4">
                                 <Icon name="Loader2" className="animate-spin text-gray-400" size={24} />
                                 <span className="ml-2 text-gray-500">Generating...</span>
                             </div>
                         ) : (
-                            <textarea
-                                readOnly
-                                value={text}
-                                className="w-full h-full text-sm text-gray-700 bg-transparent border-none resize-none focus:ring-0"
-                                placeholder="AI insights will appear here..."
-                            />
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                                {text || <span className="text-gray-400 italic">AI insights will appear here...</span>}
+                            </div>
                         )}
                     </div>
                 </div>
@@ -413,7 +426,7 @@
             const hasKey = !!localStorage.getItem('gg_gemini_api_key');
 
             return (
-                <div className="mb-4 no-print">
+                <div className="no-print">
                     <button
                         className="btn btn-secondary text-xs"
                         onClick={() => setOpen(o => !o)}
@@ -462,7 +475,7 @@
             };
             return (
                 <div className="p-4 bg-white rounded-lg shadow-md mb-6 no-print">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input
                             type="text"
                             name="residentName"
@@ -475,13 +488,6 @@
                             name="dateRange"
                             placeholder="Date Range (e.g., 11/05 - 11/07)"
                             value={headerData.dateRange}
-                            onChange={handleChange}
-                        />
-                        <input
-                            type="text"
-                            name="notes"
-                            placeholder="Notes"
-                            value={headerData.notes}
                             onChange={handleChange}
                         />
                     </div>
@@ -624,6 +630,12 @@
                 loading: false,
                 error: null,
             });
+            const [reviewerSummary, setReviewerSummary] = useState(
+                () => localStorage.getItem('ggReviewerSummary') || ''
+            );
+            useEffect(() => {
+                localStorage.setItem('ggReviewerSummary', reviewerSummary);
+            }, [reviewerSummary]);
 
             const handleGenerateInsights = async () => {
                 setAiResult({
@@ -693,36 +705,38 @@
             };
 
             return (
-                <div className="mt-8 p-6 bg-gray-50 rounded-lg shadow-md no-print">
+                <div className="mt-8 p-6 bg-gray-50 rounded-lg shadow-md">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">
                         AI-Powered Insights
                     </h2>
 
-                    <button
-                        className="btn btn-primary"
-                        onClick={handleGenerateInsights}
-                        disabled={aiResult.loading}
-                    >
-                        {aiResult.loading ? (
-                            <>
-                                <Icon name="Loader2" size={18} className="mr-2 animate-spin" />
-                                Generating...
-                            </>
-                        ) : (
-                            <>
-                                <Icon name="Sparkles" size={18} className="mr-2" />
-                                Generate Comprehensive AI Insights
-                            </>
+                    <div className="no-print">
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleGenerateInsights}
+                            disabled={aiResult.loading}
+                        >
+                            {aiResult.loading ? (
+                                <>
+                                    <Icon name="Loader2" size={18} className="mr-2 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Icon name="Sparkles" size={18} className="mr-2" />
+                                    Generate Comprehensive AI Insights
+                                </>
+                            )}
+                        </button>
+
+                        {aiResult.error && (
+                            <div className="mt-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-md">
+                                <strong>Error:</strong> {aiResult.error}
+                            </div>
                         )}
-                    </button>
+                    </div>
 
-                    {aiResult.error && (
-                        <div className="mt-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-md">
-                            <strong>Error:</strong> {aiResult.error}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div className="grid grid-cols-1 gap-6 mt-6">
                         <InsightBox
                             title="Clinical Summary: Self Care"
                             iconName="FileText"
@@ -746,6 +760,19 @@
                             iconName="Target"
                             text={aiResult.carePlanMobility}
                             loading={aiResult.loading && !aiResult.carePlanMobility}
+                        />
+                    </div>
+
+                    <div className="mt-6">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Reviewer Summary
+                        </label>
+                        <textarea
+                            rows={4}
+                            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm resize-y"
+                            placeholder="Enter your overall summary of the AI insights..."
+                            value={reviewerSummary}
+                            onChange={e => setReviewerSummary(e.target.value)}
                         />
                     </div>
                 </div>
@@ -789,6 +816,7 @@
                 setHeaderData(INITIAL_HEADER_DATA);
                 localStorage.removeItem('ggScores');
                 localStorage.removeItem('ggHeader');
+                localStorage.removeItem('ggReviewerSummary');
                 setShowClearModal(false);
             };
 
@@ -826,11 +854,12 @@
                             <div><strong>Notes:</strong> {headerData.notes || 'N/A'}</div>
                         </div>
 
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4 no-print">
-                            Medicare GG 3-Day Assessment Tool
-                        </h1>
-
-                        <ApiKeySettings />
+                        <div className="flex items-center justify-between mb-4 no-print">
+                            <h1 className="text-2xl font-bold text-gray-900">
+                                Medicare GG 3-Day Assessment Tool
+                            </h1>
+                            <ApiKeySettings />
+                        </div>
 
                         <Header headerData={headerData} setHeaderData={setHeaderData} />
 
@@ -838,7 +867,16 @@
 
                         <AssessmentTable />
 
+                        <PreInsightNotes headerData={headerData} setHeaderData={setHeaderData} />
+
                         <AiInsights getSerializedData={getSerializedDataForAi} />
+
+                        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end no-print">
+                            <button className="btn btn-primary" onClick={() => window.print()}>
+                                <Icon name="FileDown" size={18} className="mr-2" />
+                                Export as PDF
+                            </button>
+                        </div>
 
                         <Modal
                             show={showClearModal}
