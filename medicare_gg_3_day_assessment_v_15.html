@@ -157,6 +157,8 @@
       headerColor: '#b91c1c',
       accentColor1: '#ef4444',
       accentColor2: '#fca5a5',
+      subHeadingColor: '#d1d5db',
+      alternateColor1: '#f9fafb',
     };
 
     const AI_SECTIONS = [
@@ -491,7 +493,7 @@
               {Object.entries(itemsByGroup).map(([groupName, items]) => (
                 <Fragment key={groupName}>
                   <tr>
-                    <td colSpan={totalColumns} className="px-3 py-2 text-sm font-bold text-black" style={{ backgroundColor: theme.wallpaperColor }}>
+                    <td colSpan={totalColumns} className="px-3 py-2 text-sm font-bold text-black" style={{ backgroundColor: theme.subHeadingColor }}>
                       {groupName}
                     </td>
                   </tr>
@@ -567,7 +569,7 @@
     };
 
     const App = () => {
-      const theme = readTheme();
+      const [theme, setTheme] = useState(readTheme);
       const [scores, setScores] = useState(() => normalizeScores(readJsonStorage(STORAGE_KEYS.scores, createInitialScores())));
       const [headerData, setHeaderData] = useState(() => readJsonStorage(STORAGE_KEYS.header, INITIAL_HEADER_DATA));
       const [reviewerSummary, setReviewerSummary] = useState(() => localStorage.getItem(STORAGE_KEYS.reviewerSummary) || '');
@@ -580,6 +582,11 @@
       useEffect(() => writeJsonStorage(STORAGE_KEYS.scores, normalizeScores(scores)), [scores]);
       useEffect(() => writeJsonStorage(STORAGE_KEYS.header, headerData), [headerData]);
       useEffect(() => localStorage.setItem(STORAGE_KEYS.reviewerSummary, reviewerSummary), [reviewerSummary]);
+      useEffect(() => {
+        const handleStorage = (e) => { if (e.key === STORAGE_KEYS.theme) setTheme(readTheme()); };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+      }, []);
 
       const getSerializedData = useCallback(() => {
         const lines = [
