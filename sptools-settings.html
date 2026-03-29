@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPTools Settings</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @layer base {
+      input[type="text"],
+      input[type="password"],
+      input[type="color"] {
+        @apply border border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500 transition duration-150;
+      }
+
+      .btn {
+        @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+    const { createRoot } = ReactDOM;
+
+    const STORAGE_KEYS = {
+      apiKey: 'sptools_api_key',
+      theme: 'sptools_theme_settings',
+    };
+
+    const DEFAULT_THEME = {
+      buttonColor: '#dc2626',
+      buttonTextColor: '#ffffff',
+      wallpaperColor: '#e5e7eb',
+      pageColor: '#f3f4f6',
+      sectionColor: '#ffffff',
+      headerColor: '#b91c1c',
+      accentColor1: '#ef4444',
+      accentColor2: '#fca5a5',
+    };
+
+    const readTheme = () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.theme);
+        return raw ? { ...DEFAULT_THEME, ...JSON.parse(raw) } : { ...DEFAULT_THEME };
+      } catch {
+        return { ...DEFAULT_THEME };
+      }
+    };
+
+    const ColorField = ({ label, name, value, onChange }) => (
+      <label className="block">
+        <span className="block text-sm font-medium text-black mb-2">{label}</span>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={value}
+            onChange={(e) => onChange(name, e.target.value)}
+            className="h-11 w-16 p-1 bg-white"
+          />
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(name, e.target.value)}
+            className="flex-1 px-3 py-2 text-sm text-black"
+            placeholder="#000000"
+          />
+        </div>
+      </label>
+    );
+
+    const App = () => {
+      const [apiKey, setApiKey] = useState(() => localStorage.getItem(STORAGE_KEYS.apiKey) || '');
+      const [theme, setTheme] = useState(readTheme);
+      const [saved, setSaved] = useState(false);
+
+      const handleThemeChange = (name, value) => {
+        setTheme((prev) => ({ ...prev, [name]: value }));
+      };
+
+      const handleSave = () => {
+        localStorage.setItem(STORAGE_KEYS.apiKey, apiKey.trim());
+        localStorage.setItem(STORAGE_KEYS.theme, JSON.stringify(theme));
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      };
+
+      const handleReset = () => {
+        setTheme(DEFAULT_THEME);
+      };
+
+      const primaryButtonStyle = {
+        backgroundColor: theme.buttonColor,
+        color: theme.buttonTextColor,
+      };
+
+      return (
+        <div className="min-h-screen p-4 md:p-6" style={{ backgroundColor: theme.wallpaperColor }}>
+          <div className="max-w-3xl mx-auto rounded-2xl shadow-xl border border-gray-200 p-5 md:p-6" style={{ backgroundColor: theme.pageColor }}>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-black">SPTools Settings</h1>
+              <p className="mt-2 text-sm text-black">
+                This page stores shared settings in your browser so any of your SPTools HTML files can use the same API key and color choices.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-4 mb-4" style={{ backgroundColor: theme.sectionColor }}>
+              <h2 className="text-lg font-semibold text-black mb-4">API Settings</h2>
+              <label className="block">
+                <span className="block text-sm font-medium text-black mb-2">Google AI Studio Key</span>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="w-full px-3 py-2 text-sm text-black"
+                  placeholder="AIza..."
+                />
+              </label>
+              <p className="mt-3 text-xs text-black">
+                Stored locally in your browser under shared SPTools settings keys.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-4 mb-4" style={{ backgroundColor: theme.sectionColor }}>
+              <h2 className="text-lg font-semibold text-black mb-4">Theme Colors</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ColorField label="Button Color" name="buttonColor" value={theme.buttonColor} onChange={handleThemeChange} />
+                <ColorField label="Button Text Color" name="buttonTextColor" value={theme.buttonTextColor} onChange={handleThemeChange} />
+                <ColorField label="Wallpaper Color" name="wallpaperColor" value={theme.wallpaperColor} onChange={handleThemeChange} />
+                <ColorField label="Page Color" name="pageColor" value={theme.pageColor} onChange={handleThemeChange} />
+                <ColorField label="Section Color" name="sectionColor" value={theme.sectionColor} onChange={handleThemeChange} />
+                <ColorField label="Header Color" name="headerColor" value={theme.headerColor} onChange={handleThemeChange} />
+                <ColorField label="Accent Color 1" name="accentColor1" value={theme.accentColor1} onChange={handleThemeChange} />
+                <ColorField label="Accent Color 2" name="accentColor2" value={theme.accentColor2} onChange={handleThemeChange} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-4 mb-4" style={{ backgroundColor: theme.sectionColor }}>
+              <h2 className="text-lg font-semibold text-black mb-4">Preview</h2>
+              <div className="rounded-xl border border-gray-200 p-5" style={{ backgroundColor: theme.pageColor }}>
+                <div
+                  className="rounded-lg p-4 mb-4 border border-gray-200 text-white"
+                  style={{ backgroundColor: theme.headerColor }}
+                >
+                  Header Preview
+                </div>
+
+                <div className="rounded-lg p-4 border border-gray-200" style={{ backgroundColor: theme.sectionColor }}>
+                  <p className="text-sm text-black mb-4">This is a simple preview of your selected colors.</p>
+
+                  <div
+                    className="rounded-md px-3 py-2 text-sm font-medium text-white mb-3"
+                    style={{ backgroundColor: theme.accentColor1 }}
+                  >
+                    Accent Color 1 Preview
+                  </div>
+
+                  <div
+                    className="rounded-md px-3 py-2 text-sm font-medium text-black mb-4"
+                    style={{ backgroundColor: theme.accentColor2 }}
+                  >
+                    Accent Color 2 Preview
+                  </div>
+
+                  <button type="button" className="btn" style={primaryButtonStyle}>
+                    Sample Button
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button type="button" className="btn" style={primaryButtonStyle} onClick={handleSave}>
+                {saved ? 'Saved' : 'Save Settings'}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ backgroundColor: '#e5e7eb', color: '#000000' }}
+                onClick={handleReset}
+              >
+                Reset Theme Colors
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

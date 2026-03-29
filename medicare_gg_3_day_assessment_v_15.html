@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medicare GG 3-Day Assessment Tool</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style type="text/tailwindcss">
+    @layer base {
+      input[type="text"], textarea {
+        @apply p-2 border border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500 transition duration-150;
+      }
+      .score-input {
+        @apply block mx-auto w-9 h-8 text-center text-xs border border-gray-300 rounded focus:ring-gray-500 focus:border-gray-500;
+      }
+      .btn {
+        @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150;
+      }
+      .section-card {
+        @apply rounded-xl shadow-md border border-gray-200;
+      }
+      .chevron {
+        width: 0;
+        height: 0;
+        border-left: 0.35rem solid transparent;
+        border-right: 0.35rem solid transparent;
+      }
+      .chevron-down { border-top: 0.5rem solid #000; }
+      .chevron-up { border-bottom: 0.5rem solid #000; }
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        margin: 0;
+        padding: 0;
+      }
+      #root {
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        border: none;
+      }
+      .print-container {
+        width: 100%;
+        margin: 0.35in;
+      }
+      .print-col-label {
+        width: 18% !important;
+      }
+      .print-col-code {
+        width: 14% !important;
+      }
+      .print-col-score {
+        width: 5% !important;
+      }
+      .print-col-data {
+        width: auto !important;
+      }
+      .section-card {
+        box-shadow: none !important;
+        border: 1px solid #d1d5db !important;
+        break-inside: auto;
+        margin-bottom: 0.10in !important;
+      }
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 8.5pt !important;
+        table-layout: fixed !important;
+      }
+      th, td {
+        border: 1px solid #000 !important;
+        padding: 3px !important;
+        text-align: center !important;
+        overflow-wrap: break-word;
+      }
+      th { background-color: #f3f4f6 !important; }
+      .score-input { display: none !important; }
+      .print-input-value { display: block; }
+      @page {
+        size: letter landscape;
+        margin: 0.35in;
+      }
+      h1, h2 {
+        font-size: 14pt;
+        margin-bottom: 8px;
+      }
+      .print-header-info {
+        display: block !important;
+        margin-bottom: 0.75rem;
+        font-size: 10pt;
+      }
+      .print-header-info div { margin-bottom: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback, Fragment, createContext, useContext, useRef } = React;
+    const { createRoot } = ReactDOM;
+
+    const ASSESSMENT_ITEMS = [
+      { id: 'gg0130a', label: 'Eating', group: 'Self Care GG0130' },
+      { id: 'gg0130b', label: 'Oral Hygiene', group: 'Self Care GG0130' },
+      { id: 'gg0130c', label: 'Toileting Hygiene', group: 'Self Care GG0130' },
+      { id: 'gg0130e', label: 'Shower/bathe self', group: 'Self Care GG0130' },
+      { id: 'gg0130f', label: 'Upper body dressing', group: 'Self Care GG0130' },
+      { id: 'gg0130g', label: 'Lower body dressing', group: 'Self Care GG0130' },
+      { id: 'gg0130h', label: 'Putting on/taking off footwear', group: 'Self Care GG0130' },
+      { id: 'gg0170a', label: 'Roll left and right', group: 'Mobility GG0170' },
+      { id: 'gg0170b', label: 'Sit to lying', group: 'Mobility GG0170' },
+      { id: 'gg0170c', label: 'Lying to sitting on side of bed', group: 'Mobility GG0170' },
+      { id: 'gg0170d', label: 'Sit to stand', group: 'Mobility GG0170' },
+      { id: 'gg0170e', label: 'Chair/bed-to-chair transfer', group: 'Mobility GG0170' },
+      { id: 'gg0170f', label: 'Toilet transfer', group: 'Mobility GG0170' },
+      { id: 'gg0170g', label: 'Car transfer', group: 'Mobility GG0170' },
+      { id: 'gg0170i', label: 'Walk 10 feet', group: 'Mobility GG0170' },
+      { id: 'gg0170j', label: 'Walk 50 feet with two turns', group: 'Mobility GG0170' },
+      { id: 'gg0170k', label: 'Walk 150 feet', group: 'Mobility GG0170' },
+      { id: 'gg0170r', label: 'Wheeling 150 feet', group: 'Mobility GG0170' },
+    ];
+
+    const ROLE_GROUPS = [
+      { key: 'primary', label: 'ROLE 1 (Nursing)' },
+      { key: 'secondary', label: 'ROLE 2 (Therapy-Others)' },
+    ];
+    const DAY_HEADERS = ['Day 1', 'Day 2', 'Day 3'];
+    const TIME_HEADERS = ['Day', 'Eve', 'NOC'];
+    const ALLOWED_SCORES = [1, 2, 3, 4, 5, 6];
+    const ANA_CODES = [7, 9, 10, 88];
+    const VALID_INPUTS = [...ALLOWED_SCORES, ...ANA_CODES];
+    const INITIAL_HEADER_DATA = { residentName: '', dateRange: '', notes: '' };
+    const STORAGE_KEYS = {
+      scores: 'ggScores',
+      header: 'ggHeader',
+      reviewerSummary: 'ggReviewerSummary',
+      apiKey: 'sptools_api_key',
+      theme: 'sptools_theme_settings',
+    };
+
+    const DEFAULT_THEME = {
+      buttonColor: '#dc2626',
+      buttonTextColor: '#ffffff',
+      wallpaperColor: '#e5e7eb',
+      pageColor: '#f3f4f6',
+      sectionColor: '#ffffff',
+    };
+
+    const AI_SECTIONS = [
+      {
+        key: 'clinicalSelfCare',
+        title: 'Clinical Summary: Self Care',
+        systemPrompt: "You are a clinical documentation specialist and nurse with expertise in skilled nursing facility (SNF) Medicare GG coding. Your task is to provide an objective summary of a resident's functional status. Focus ONLY on the Self Care (GG0130) items. This is not a hospital setting.",
+        buildPrompt: (dataSummary) => `Here is the serialized GG 3-Day Assessment data:\n\n${dataSummary}\n\nPlease generate a summary paragraph for the Self Care (GG0130) items only. Structure your analysis by grouping items based on performance, starting with what is going well (highest scores, least assistance), then going okay (moderate scores), and finally not going well (lowest scores, most assistance).`,
+      },
+      {
+        key: 'clinicalMobility',
+        title: 'Clinical Summary: Mobility',
+        systemPrompt: "You are a clinical documentation specialist and nurse with expertise in skilled nursing facility (SNF) Medicare GG coding. Your task is to provide an objective summary of a resident's functional status. Focus ONLY on the Mobility (GG0170) items. This is not a hospital setting.",
+        buildPrompt: (dataSummary) => `Here is the serialized GG 3-Day Assessment data:\n\n${dataSummary}\n\nPlease generate a summary paragraph for the Mobility (GG0170) items only. Structure your analysis by grouping items based on performance, starting with what is going well (highest scores, least assistance), then going okay (moderate scores), and finally not going well (lowest scores, most assistance).`,
+      },
+      {
+        key: 'carePlanSelfCare',
+        title: 'Care Plan Focus: Self Care',
+        systemPrompt: 'You are an expert rehabilitation therapist (PT/OT/SLP) in a skilled nursing facility. Your goal is to identify key areas for intervention. Focus ONLY on the Self Care (GG0130) items. This is not a hospital setting.',
+        buildPrompt: (dataSummary) => `Here is the serialized GG 3-Day Assessment data:\n\n${dataSummary}\n\nPlease analyze the Self Care (GG0130) items. Identify the items not going well (lowest scores 1-6) and generate a bulleted list of 2-3 high-level, actionable care plan goals or focus areas for them.`,
+      },
+      {
+        key: 'carePlanMobility',
+        title: 'Care Plan Focus: Mobility',
+        systemPrompt: 'You are an expert rehabilitation therapist (PT/OT/SLP) in a skilled nursing facility. Your goal is to identify key areas for intervention. Focus ONLY on the Mobility (GG0170) items. This is not a hospital setting.',
+        buildPrompt: (dataSummary) => `Here is the serialized GG 3-Day Assessment data:\n\n${dataSummary}\n\nPlease analyze the Mobility (GG0170) items. Identify the items not going well (lowest scores 1-6) and generate a bulleted list of 2-3 high-level, actionable care plan goals or focus areas for them.`,
+      },
+      {
+        key: 'overallAnalysis',
+        title: 'Overall CMS/RAI Review',
+        systemPrompt: 'You are a skilled nursing facility documentation reviewer with strong knowledge of CMS and RAI guidance for Section GG style functional documentation. Review the clinical summaries and care plan focus areas together, then write one concise paragraph that synthesizes the resident\'s overall functional picture, the major areas needing attention, and whether the narrative appears aligned with typical CMS/RAI-style functional assessment expectations. Do not cite regulations. Do not mention that you are an AI.',
+        buildPrompt: (_, resultsSoFar) => `Review the following assessment outputs together and provide one overall paragraph:\n\nClinical Summary: Self Care\n${resultsSoFar.clinicalSelfCare || 'N/A'}\n\nClinical Summary: Mobility\n${resultsSoFar.clinicalMobility || 'N/A'}\n\nCare Plan Focus: Self Care\n${resultsSoFar.carePlanSelfCare || 'N/A'}\n\nCare Plan Focus: Mobility\n${resultsSoFar.carePlanMobility || 'N/A'}\n\nWrite a single integrated paragraph that reflects a CMS/RAI-oriented overall review.`,
+      },
+    ];
+
+    const AppContext = createContext(null);
+
+    const normalizeRow = (row = []) => {
+      const normalized = Array(18).fill('');
+      row.slice(0, 18).forEach((value, index) => {
+        normalized[index] = typeof value === 'string' ? value : String(value ?? '');
+      });
+      return normalized;
+    };
+
+    const createInitialScores = () => ASSESSMENT_ITEMS.reduce((acc, item) => {
+      acc[item.id] = Array(18).fill('');
+      return acc;
+    }, {});
+
+    const normalizeScores = (rawScores) => {
+      const normalized = createInitialScores();
+      if (!rawScores || typeof rawScores !== 'object') return normalized;
+      ASSESSMENT_ITEMS.forEach((item) => {
+        normalized[item.id] = normalizeRow(rawScores[item.id]);
+      });
+      return normalized;
+    };
+
+    const readJsonStorage = (key, fallback) => {
+      try {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    const writeJsonStorage = (key, value) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {
+        console.error(`Failed to save ${key}`, e);
+      }
+    };
+
+    const readTheme = () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.theme);
+        return raw ? { ...DEFAULT_THEME, ...JSON.parse(raw) } : DEFAULT_THEME;
+      } catch {
+        return DEFAULT_THEME;
+      }
+    };
+
+    const getVisibleInputs = (inputs, showSecondaryRole) => normalizeRow(inputs).slice(0, showSecondaryRole ? 18 : 9);
+
+    const calculateRowScores = (inputs, showSecondaryRole) => {
+      const rawValues = getVisibleInputs(inputs, showSecondaryRole).map((val) => val.trim()).filter(Boolean);
+      if (!rawValues.length) return { usualPerfScore: '--', anaStatus: 'Empty', hasError: false };
+      const numericValues = rawValues.map(Number);
+      const hasError = numericValues.some((val) => Number.isNaN(val) || !VALID_INPUTS.includes(val));
+      if (hasError) return { usualPerfScore: 'ERR', anaStatus: 'ERROR', hasError: true };
+      const scoreInputs = numericValues.filter((val) => ALLOWED_SCORES.includes(val));
+      const anaInputs = numericValues.filter((val) => ANA_CODES.includes(val));
+      let anaStatus = 'Empty';
+      if (scoreInputs.length && anaInputs.length) anaStatus = 'ANA + 1-6 mixed';
+      else if (scoreInputs.length) anaStatus = 'No ANA codes';
+      else if (anaInputs.length) anaStatus = 'ANA codes only';
+
+      let usualPerfScore = '--';
+      if (anaStatus === 'ANA codes only') {
+        usualPerfScore = String(Math.max(...anaInputs));
+      } else if (scoreInputs.length) {
+        const freqMap = scoreInputs.reduce((acc, val) => {
+          acc[val] = (acc[val] || 0) + 1;
+          return acc;
+        }, {});
+        const maxFreq = Math.max(...Object.values(freqMap));
+        const modes = Object.keys(freqMap).filter((key) => freqMap[key] === maxFreq).map(Number);
+        const finalMode = Math.min(...modes);
+        const displayScore = String(finalMode).padStart(2, '0');
+        usualPerfScore = modes.length > 1 ? `${displayScore}*` : displayScore;
+      }
+      return { usualPerfScore, anaStatus, hasError };
+    };
+
+    const extractGeminiText = (data) => {
+      const candidates = data?.candidates;
+      if (!Array.isArray(candidates) || !candidates.length) {
+        const blockReason = data?.promptFeedback?.blockReason;
+        throw new Error(blockReason ? `The AI response was blocked: ${blockReason}.` : 'The AI service returned no candidates.');
+      }
+      const parts = candidates[0]?.content?.parts;
+      if (!Array.isArray(parts) || !parts.length) throw new Error('The AI service returned an empty response.');
+      const text = parts.map((part) => part?.text || '').join('').trim();
+      if (!text) throw new Error('The AI service returned no text content.');
+      return text;
+    };
+
+    const callGeminiApi = async ({ systemPrompt, userPrompt }) => {
+      const apiKey = localStorage.getItem(STORAGE_KEYS.apiKey) || '';
+      if (!apiKey) throw new Error('No API key set. Open SPTools Settings to add your Google AI Studio API key.');
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ parts: [{ text: userPrompt }] }],
+          }),
+        }
+      );
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error?.message || `API error: ${response.status}`);
+      return extractGeminiText(data);
+    };
+
+    const fetchWithRetry = async (apiCall, retries = 3, delay = 1000) => {
+      let lastError = null;
+      for (let i = 0; i < retries; i++) {
+        try {
+          return await apiCall();
+        } catch (error) {
+          lastError = error;
+          console.warn(`API call failed (Attempt ${i + 1}/${retries}): ${error.message}`);
+          if (i < retries - 1) await new Promise((res) => setTimeout(res, delay * (i + 1)));
+        }
+      }
+      throw new Error(`API call failed after ${retries} attempts: ${lastError.message}`);
+    };
+
+    const CollapsibleSection = ({ title, children, defaultOpen = true, theme, rightContent }) => {
+      const [isOpen, setIsOpen] = useState(defaultOpen);
+      return (
+        <div className="section-card mb-3" style={{ backgroundColor: theme.sectionColor }}>
+          <div className="hidden print:block px-4 pt-3 pb-2">
+            <h2 className="text-base font-bold text-black">{title}</h2>
+          </div>
+          <button type="button" className="w-full text-left px-4 py-3 flex items-center justify-between no-print" onClick={() => setIsOpen((prev) => !prev)}>
+            <div className="flex items-center gap-2">
+              <span className={`chevron ${isOpen ? 'chevron-up' : 'chevron-down'}`}></span>
+              <h2 className="text-base font-bold text-black">{title}</h2>
+            </div>
+            <div className="flex items-center gap-3">{rightContent}</div>
+          </button>
+          <div className={`${isOpen ? 'block' : 'hidden'} print:block px-4 pb-4`}>{children}</div>
+        </div>
+      );
+    };
+
+    const InsightBox = ({ title, text, loading }) => (
+      <div className="border border-gray-200 rounded-lg p-3 bg-white">
+        <h3 className="text-sm font-semibold text-black mb-2">{title}</h3>
+        <div className="text-xs text-black whitespace-pre-wrap min-h-[2.5rem] leading-5">
+          {loading ? 'Generating...' : text || 'AI insights will appear here...'}
+        </div>
+      </div>
+    );
+
+    const HeaderSection = ({ headerData, setHeaderData, theme, onPrint, children }) => {
+      const handleChange = ({ target: { name, value } }) => setHeaderData((prev) => ({ ...prev, [name]: value }));
+      const settingsButtonStyle = { backgroundColor: theme.buttonColor, color: theme.buttonTextColor };
+      return (
+        <div className="section-card mb-3 px-4 py-4" style={{ backgroundColor: theme.sectionColor }}>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div><h1 className="text-2xl font-bold text-black">Medicare GG 3-Day Assessment Tool</h1></div>
+            <div className="flex items-center gap-2">
+              {children}
+              <a href="./sptools-settings.html" target="_blank" rel="noopener noreferrer" className="btn no-print" style={settingsButtonStyle}>Settings</a>
+              <button type="button" className="btn no-print" style={settingsButtonStyle} onClick={onPrint}>Print</button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input type="text" name="residentName" placeholder="Name of Resident" value={headerData.residentName} onChange={handleChange} />
+            <input type="text" name="dateRange" placeholder="Date Range (e.g., 11/05 - 11/07)" value={headerData.dateRange} onChange={handleChange} />
+          </div>
+        </div>
+      );
+    };
+
+    const AssessmentRow = ({ item, rowIndex }) => {
+      const { scores, setScores, showSecondaryRole, inputRefs } = useContext(AppContext);
+      const rowScores = normalizeRow(scores[item.id]);
+      const visibleValues = getVisibleInputs(rowScores, showSecondaryRole);
+      const visibleCellCount = showSecondaryRole ? 18 : 9;
+      const roleStartIndex = { primary: 0, secondary: 9 };
+      const { usualPerfScore, anaStatus, hasError } = useMemo(() => calculateRowScores(rowScores, showSecondaryRole), [rowScores, showSecondaryRole]);
+
+      const handleChange = (index, value) => {
+        if (!/^\d{0,2}$/.test(value)) return;
+        const nextScores = [...rowScores];
+        nextScores[index] = value;
+        setScores((prev) => ({ ...prev, [item.id]: nextScores }));
+      };
+
+      const handleKeyDown = (event, visibleIndex) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+
+        const roleKey = visibleIndex < 9 ? 'primary' : 'secondary';
+        if (roleKey === 'secondary' && !showSecondaryRole) return;
+
+        const nextRowIndex = rowIndex + 1;
+        if (nextRowIndex >= ASSESSMENT_ITEMS.length) return;
+
+        const nextCellIndex = roleStartIndex[roleKey];
+        if (nextCellIndex >= visibleCellCount) return;
+
+        const nextRef = inputRefs.current[`${nextRowIndex}-${nextCellIndex}`];
+        if (nextRef) {
+          nextRef.focus();
+          nextRef.select?.();
+        }
+      };
+
+      return (
+        <tr className="hover:bg-gray-50">
+          <td className="sticky left-0 z-10 bg-white hover:bg-gray-50 border-r border-b px-2 py-1 text-xs font-normal text-black text-left whitespace-nowrap print-col-label">
+            {item.label}
+          </td>
+          {visibleValues.map((value, index) => (
+            <td key={index} className="border-b px-[2px] py-[2px] text-center print-col-data">
+              <input
+                ref={(el) => { inputRefs.current[`${rowIndex}-${index}`] = el; }}
+                type="text"
+                maxLength="2"
+                value={value || ''}
+                onChange={(e) => handleChange(index, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+                className="score-input"
+              />
+              <span className="hidden print:block print-input-value text-xs">{value || '-'}</span>
+            </td>
+          ))}
+          <td className={`border-b px-2 py-1 text-xs text-center print-col-score ${hasError ? 'text-red-600' : 'text-black'}`}>{usualPerfScore}</td>
+          <td className={`border-b px-2 py-1 text-xs text-center print-col-code ${hasError ? 'text-red-600' : 'text-black'}`}>{anaStatus}</td>
+        </tr>
+      );
+    };
+
+    const AssessmentTable = () => {
+      const { showSecondaryRole } = useContext(AppContext);
+      const itemsByGroup = ASSESSMENT_ITEMS.reduce((acc, item) => {
+        if (!acc[item.group]) acc[item.group] = [];
+        acc[item.group].push(item);
+        return acc;
+      }, {});
+      const visibleRoles = showSecondaryRole ? ROLE_GROUPS : [ROLE_GROUPS[0]];
+      const totalColumns = 1 + visibleRoles.length * 9 + 2;
+      let runningRowIndex = -1;
+
+      return (
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200 border border-gray-300 bg-white">
+            <thead>
+              <tr className="bg-gray-100">
+                <th rowSpan="3" className="sticky left-0 z-20 bg-gray-100 border-r border-b px-2 py-2 text-left text-xs font-bold text-black whitespace-nowrap print-col-label">
+                  Three-day assessment period
+                </th>
+                {visibleRoles.map((role) => (
+                  <th key={role.key} colSpan="9" className={`border-b border-l px-2 py-1 text-sm font-bold text-center ${role.key === 'secondary' ? 'bg-green-100' : 'bg-blue-100'} text-black`}>
+                    {role.label}
+                  </th>
+                ))}
+                <th rowSpan="3" className="border-b border-l px-2 py-2 text-xs font-bold text-black align-middle print-col-score">
+                  Usual Perf Score
+                </th>
+                <th rowSpan="3" className="border-b border-l px-2 py-2 text-xs font-bold text-black align-middle print-col-code">
+                  Other Codes for Evaluation
+                </th>
+              </tr>
+              <tr className="bg-gray-50">
+                {visibleRoles.map((role) => (
+                  <Fragment key={`${role.key}-days`}>
+                    {DAY_HEADERS.map((day) => (
+                      <th key={`${role.key}-${day}`} colSpan="3" className={`border-b border-l px-1 py-1 text-xs font-bold text-black ${role.key === 'secondary' ? 'bg-green-50' : 'bg-blue-50'}`}>
+                        {day}
+                      </th>
+                    ))}
+                  </Fragment>
+                ))}
+              </tr>
+              <tr className="bg-white">
+                {visibleRoles.map((role) => (
+                  <Fragment key={`${role.key}-times`}>
+                    {DAY_HEADERS.map((day) => (
+                      <Fragment key={`${role.key}-${day}-times`}>
+                        {TIME_HEADERS.map((time) => (
+                          <th key={`${role.key}-${day}-${time}`} className="border-b border-l px-[2px] py-[2px] text-xs font-bold text-black print-col-data">
+                            {time}
+                          </th>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </Fragment>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {Object.entries(itemsByGroup).map(([groupName, items]) => (
+                <Fragment key={groupName}>
+                  <tr>
+                    <td colSpan={totalColumns} className="bg-gray-200 px-3 py-2 text-sm font-bold text-black">
+                      {groupName}
+                    </td>
+                  </tr>
+                  {items.map((item) => {
+                    runningRowIndex += 1;
+                    return <AssessmentRow key={item.id} item={item} rowIndex={runningRowIndex} />;
+                  })}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    };
+
+    const AiInsights = ({ getSerializedData, theme, onHide }) => {
+      const emptyResult = { clinicalSelfCare: '', clinicalMobility: '', carePlanSelfCare: '', carePlanMobility: '', overallAnalysis: '', loading: false, error: null };
+      const [aiResult, setAiResult] = useState(emptyResult);
+      const buttonStyle = { backgroundColor: theme.buttonColor, color: theme.buttonTextColor };
+      const hideButtonStyle = { backgroundColor: '#e5e7eb', color: '#000000' };
+
+      const handleGenerateInsights = async () => {
+        setAiResult({ ...emptyResult, loading: true });
+        const dataSummary = getSerializedData();
+        if (!dataSummary) {
+          setAiResult({ ...emptyResult, error: 'No data to analyze. Please enter scores first.' });
+          return;
+        }
+        try {
+          const nextResults = {};
+          for (const section of AI_SECTIONS) {
+            nextResults[section.key] = await fetchWithRetry(() => callGeminiApi({ systemPrompt: section.systemPrompt, userPrompt: section.buildPrompt(dataSummary, nextResults) }));
+            setAiResult((prev) => ({ ...prev, ...nextResults, loading: true }));
+          }
+          setAiResult((prev) => ({ ...prev, ...nextResults, loading: false, error: null }));
+        } catch (err) {
+          console.error('AI Insight Generation Failed:', err);
+          setAiResult({ ...emptyResult, error: `Failed to generate insights: ${err.message}` });
+        }
+      };
+
+      return (
+        <>
+          <div className="flex items-center justify-end gap-2 mb-3 no-print">
+            <button type="button" className="btn text-xs" style={buttonStyle} onClick={handleGenerateInsights} disabled={aiResult.loading}>
+              {aiResult.loading ? 'Generating...' : 'Generate AI Insights'}
+            </button>
+            <button type="button" className="btn text-xs" style={hideButtonStyle} onClick={onHide}>Hide</button>
+          </div>
+          {aiResult.error && <div className="mb-3 p-3 bg-red-100 border border-red-300 text-red-800 rounded-md text-xs"><strong>Error:</strong> {aiResult.error}</div>}
+          <div className="grid grid-cols-1 gap-3">
+            <InsightBox title="Clinical Summary: Self Care" text={aiResult.clinicalSelfCare} loading={aiResult.loading && !aiResult.clinicalSelfCare} />
+            <InsightBox title="Clinical Summary: Mobility" text={aiResult.clinicalMobility} loading={aiResult.loading && !aiResult.clinicalMobility} />
+            <InsightBox title="Care Plan Focus: Self Care" text={aiResult.carePlanSelfCare} loading={aiResult.loading && !aiResult.carePlanSelfCare} />
+            <InsightBox title="Care Plan Focus: Mobility" text={aiResult.carePlanMobility} loading={aiResult.loading && !aiResult.carePlanMobility} />
+            <InsightBox title="Overall CMS/RAI Review" text={aiResult.overallAnalysis} loading={aiResult.loading && !aiResult.overallAnalysis} />
+          </div>
+        </>
+      );
+    };
+
+    const ReviewerSection = ({ reviewerSummary, setReviewerSummary, theme, onPrint }) => {
+      const buttonStyle = { backgroundColor: theme.buttonColor, color: theme.buttonTextColor };
+      return (
+        <div>
+          <label className="block text-sm text-black mb-2"><span className="font-bold">Freeform Editor</span> <span className="font-normal">(use this to prepare text for insertion into your report)</span></label>
+          <textarea rows={4} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500 text-xs resize-y" placeholder="Enter your overall summary of the AI insights..." value={reviewerSummary} onChange={(e) => setReviewerSummary(e.target.value)} />
+          <div className="mt-4 flex justify-end no-print">
+            <button type="button" className="btn" style={buttonStyle} onClick={onPrint}>Print</button>
+          </div>
+        </div>
+      );
+    };
+
+    const App = () => {
+      const theme = readTheme();
+      const [scores, setScores] = useState(() => normalizeScores(readJsonStorage(STORAGE_KEYS.scores, createInitialScores())));
+      const [headerData, setHeaderData] = useState(() => readJsonStorage(STORAGE_KEYS.header, INITIAL_HEADER_DATA));
+      const [reviewerSummary, setReviewerSummary] = useState(() => localStorage.getItem(STORAGE_KEYS.reviewerSummary) || '');
+      const [showClearModal, setShowClearModal] = useState(false);
+      const [showAiSection, setShowAiSection] = useState(true);
+      const [showSecondaryRole, setShowSecondaryRole] = useState(false);
+      const inputRefs = useRef({});
+
+      useEffect(() => setScores((prev) => normalizeScores(prev)), []);
+      useEffect(() => writeJsonStorage(STORAGE_KEYS.scores, normalizeScores(scores)), [scores]);
+      useEffect(() => writeJsonStorage(STORAGE_KEYS.header, headerData), [headerData]);
+      useEffect(() => localStorage.setItem(STORAGE_KEYS.reviewerSummary, reviewerSummary), [reviewerSummary]);
+
+      const getSerializedData = useCallback(() => {
+        const lines = [
+          `Resident: ${headerData.residentName || 'N/A'}`,
+          `Date Range: ${headerData.dateRange || 'N/A'}`,
+          `Notes: ${headerData.notes || 'N/A'}`,
+          `Secondary Role Visible: ${showSecondaryRole ? 'Yes' : 'No'}`,
+          '--- Assessment Data ---',
+        ];
+        let hasData = false;
+        ASSESSMENT_ITEMS.forEach((item) => {
+          const rowScores = normalizeRow(scores[item.id]);
+          const visibleValues = getVisibleInputs(rowScores, showSecondaryRole);
+          const { usualPerfScore, anaStatus, hasError } = calculateRowScores(rowScores, showSecondaryRole);
+          if (!visibleValues.some((value) => value && value.trim() !== '')) return;
+          hasData = true;
+          lines.push(`[${item.label} (${item.id})]: Visible Inputs: ${visibleValues.join(', ')} | Usual Perf Score: ${usualPerfScore} | ANA Status: ${anaStatus}${hasError ? ' | (ERROR)' : ''}`);
+        });
+        return hasData ? lines.join('\n') : null;
+      }, [scores, headerData, showSecondaryRole]);
+
+      const handleClearAll = () => {
+        setScores(createInitialScores());
+        setHeaderData(INITIAL_HEADER_DATA);
+        setReviewerSummary('');
+        localStorage.removeItem(STORAGE_KEYS.scores);
+        localStorage.removeItem(STORAGE_KEYS.header);
+        localStorage.removeItem(STORAGE_KEYS.reviewerSummary);
+        setShowClearModal(false);
+      };
+
+      const clearRoleRange = (startIndex, endIndex) => {
+        setScores((prev) => {
+          const next = {};
+          ASSESSMENT_ITEMS.forEach((item) => {
+            const row = normalizeRow(prev[item.id]);
+            for (let i = startIndex; i <= endIndex; i++) row[i] = '';
+            next[item.id] = row;
+          });
+          return next;
+        });
+        setShowClearModal(false);
+      };
+
+      const handlePrint = () => {
+        if (showAiSection) {
+          const proceed = window.confirm('Are you sure you want to print with the AI Response content visible?');
+          if (!proceed) return;
+        }
+        window.print();
+      };
+
+      const openSettingsPage = () => {
+        const settingsUrl = './sptools-settings.html';
+        const settingsWindow = window.open(settingsUrl, '_blank');
+        if (!settingsWindow) {
+          alert('The settings page could not be opened automatically. Please confirm that sptools-settings.html is located in the current folder with this file, and open it manually if needed.');
+        }
+      };
+
+      const buttonStyle = { backgroundColor: theme.buttonColor, color: theme.buttonTextColor };
+      const neutralButtonStyle = { backgroundColor: '#e5e7eb', color: '#000000' };
+
+      return (
+        <AppContext.Provider value={{ scores, setScores, showSecondaryRole, inputRefs }}>
+          <div className="min-h-screen" style={{ backgroundColor: theme.wallpaperColor }}>
+            <div className="max-w-screen-2xl mx-auto px-2 py-2 md:px-3 md:py-3 print-container" style={{ backgroundColor: theme.pageColor }}>
+              <div className="hidden print:block print-header-info">
+                <h1 className="text-xl font-bold">Medicare GG 3-Day Assessment</h1>
+                <div><strong>Resident:</strong> {headerData.residentName || 'N/A'}</div>
+                <div><strong>Date Range:</strong> {headerData.dateRange || 'N/A'}</div>
+                              </div>
+
+              <HeaderSection headerData={headerData} setHeaderData={setHeaderData} theme={theme} onPrint={handlePrint}>
+                {!showAiSection && (
+                  <button type="button" className="btn no-print" style={{ backgroundColor: '#e5e7eb', color: '#000000', borderRadius: '9999px', width: '2.2rem', height: '2.2rem', padding: 0 }} onClick={() => setShowAiSection(true)} title="Show AI section">
+                    i
+                  </button>
+                )}
+              </HeaderSection>
+
+              <CollapsibleSection
+                title="GG Assessment"
+                defaultOpen={true}
+                theme={theme}
+                rightContent={
+                  <div className="flex items-center gap-2">
+                    <button type="button" className="btn text-xs" style={neutralButtonStyle} onClick={(e) => { e.stopPropagation(); setShowSecondaryRole((prev) => !prev); }}>
+                      {showSecondaryRole ? 'Hide 2nd Role Days' : 'Show 2nd Role Days'}
+                    </button>
+                    <button type="button" className="btn text-xs" style={buttonStyle} onClick={(e) => { e.stopPropagation(); setShowClearModal(true); }}>
+                      Clear Data
+                    </button>
+                  </div>
+                }
+              >
+                <AssessmentTable />
+                <div className="mt-4">
+                  <div className="bg-gray-200 px-3 py-2 text-sm font-bold text-black rounded-t-lg border border-gray-200 border-b-0">Manual Assessment Notes</div>
+                  <div className="border border-gray-200 rounded-b-lg p-3 bg-white">
+                    <p className="text-xs text-black mb-2">Add any notes here for consideration in the AI insight analysis.</p>
+                    <textarea name="notes" rows={3} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-gray-500 focus:border-gray-500 text-xs resize-y" placeholder="Enter any additional context or emphasis for the AI..." value={headerData.notes} onChange={(e) => setHeaderData((prev) => ({ ...prev, notes: e.target.value }))} />
+                  </div>
+                </div>
+              </CollapsibleSection>
+
+              {showAiSection && (
+                <CollapsibleSection title="AI-Powered Insights" defaultOpen={true} theme={theme}>
+                  <p className="text-xs text-black mb-3">Please review AI-generated content carefully and check for errors. AI output can be inaccurate or incomplete.</p>
+                  <AiInsights getSerializedData={getSerializedData} theme={theme} onHide={() => setShowAiSection(false)} />
+                </CollapsibleSection>
+              )}
+
+              <CollapsibleSection title="Reviewer Summary" defaultOpen={true} theme={theme}>
+                <ReviewerSection reviewerSummary={reviewerSummary} setReviewerSummary={setReviewerSummary} theme={theme} onPrint={handlePrint} />
+              </CollapsibleSection>
+
+              {showClearModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 no-print px-4">
+                  <div className="bg-white rounded-lg shadow-xl max-w-xl w-full p-5">
+                    <h3 className="text-lg font-bold text-black mb-3">Clear Assessment Data</h3>
+                    <p className="text-sm text-black mb-4">Choose whether you want to clear all assessment content, only the 1st role (NAC's &amp; Nurses), or only the 2nd role (PT &amp; Others).</p>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button type="button" className="btn text-sm" style={neutralButtonStyle} onClick={() => setShowClearModal(false)}>Cancel</button>
+                      <button type="button" className="btn text-sm" style={{ backgroundColor: '#f59e0b', color: '#ffffff' }} onClick={() => clearRoleRange(0, 8)}>Clear 1st Role</button>
+                      <button type="button" className="btn text-sm" style={{ backgroundColor: '#6366f1', color: '#ffffff' }} onClick={() => clearRoleRange(9, 17)}>Clear 2nd Role</button>
+                      <button type="button" className="btn text-sm" style={buttonStyle} onClick={handleClearAll}>Clear All</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </AppContext.Provider>
+      );
+    };
+
+    createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
