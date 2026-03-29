@@ -154,6 +154,11 @@
       wallpaperColor: '#e5e7eb',
       pageColor: '#f3f4f6',
       sectionColor: '#ffffff',
+      headerColor: '#b91c1c',
+      accentColor1: '#ef4444',
+      accentColor2: '#fca5a5',
+      subHeadingColor: '#d1d5db',
+      alternateColor1: '#f9fafb',
     };
 
     const AI_SECTIONS = [
@@ -324,10 +329,10 @@
           <div className="hidden print:block px-4 pt-3 pb-2">
             <h2 className="text-base font-bold text-black">{title}</h2>
           </div>
-          <button type="button" className="w-full text-left px-4 py-3 flex items-center justify-between no-print" onClick={() => setIsOpen((prev) => !prev)}>
+          <button type="button" className="w-full text-left px-4 py-3 flex items-center justify-between no-print rounded-t-lg" style={{ backgroundColor: theme.headerColor, color: '#ffffff' }} onClick={() => setIsOpen((prev) => !prev)}>
             <div className="flex items-center gap-2">
               <span className={`chevron ${isOpen ? 'chevron-up' : 'chevron-down'}`}></span>
-              <h2 className="text-base font-bold text-black">{title}</h2>
+              <h2 className="text-base font-bold" style={{ color: '#ffffff' }}>{title}</h2>
             </div>
             <div className="flex items-center gap-3">{rightContent}</div>
           </button>
@@ -349,9 +354,9 @@
       const handleChange = ({ target: { name, value } }) => setHeaderData((prev) => ({ ...prev, [name]: value }));
       const settingsButtonStyle = { backgroundColor: theme.buttonColor, color: theme.buttonTextColor };
       return (
-        <div className="section-card mb-3 px-4 py-4" style={{ backgroundColor: theme.sectionColor }}>
+        <div className="section-card mb-3 px-4 py-4" style={{ backgroundColor: theme.headerColor }}>
           <div className="flex items-start justify-between gap-4 mb-4">
-            <div><h1 className="text-2xl font-bold text-black">Medicare GG 3-Day Assessment Tool</h1></div>
+            <div><h1 className="text-2xl font-bold" style={{ color: '#ffffff' }}>Medicare GG 3-Day Assessment Tool</h1></div>
             <div className="flex items-center gap-2">
               {children}
               <a href="./sptools-settings.html" target="_blank" rel="noopener noreferrer" className="btn no-print" style={settingsButtonStyle}>Settings</a>
@@ -427,7 +432,7 @@
     };
 
     const AssessmentTable = () => {
-      const { showSecondaryRole } = useContext(AppContext);
+      const { showSecondaryRole, theme } = useContext(AppContext);
       const itemsByGroup = ASSESSMENT_ITEMS.reduce((acc, item) => {
         if (!acc[item.group]) acc[item.group] = [];
         acc[item.group].push(item);
@@ -442,18 +447,18 @@
           <table className="min-w-full divide-y divide-gray-200 border border-gray-300 bg-white">
             <thead>
               <tr className="bg-gray-100">
-                <th rowSpan="3" className="sticky left-0 z-20 bg-gray-100 border-r border-b px-2 py-2 text-left text-xs font-bold text-black whitespace-nowrap print-col-label">
+                <th rowSpan="3" className="sticky left-0 z-20 border-r border-b px-2 py-2 text-left text-xs font-bold text-black whitespace-nowrap print-col-label" style={{ backgroundColor: theme.accentColor2 }}>
                   Three-day assessment period
                 </th>
                 {visibleRoles.map((role) => (
-                  <th key={role.key} colSpan="9" className={`border-b border-l px-2 py-1 text-sm font-bold text-center ${role.key === 'secondary' ? 'bg-green-100' : 'bg-blue-100'} text-black`}>
+                  <th key={role.key} colSpan="9" className="border-b border-l px-2 py-1 text-sm font-bold text-center text-black" style={{ backgroundColor: role.key === 'secondary' ? theme.accentColor2 : theme.accentColor1 }}>
                     {role.label}
                   </th>
                 ))}
-                <th rowSpan="3" className="border-b border-l px-2 py-2 text-xs font-bold text-black align-middle print-col-score">
+                <th rowSpan="3" className="border-b border-l px-2 py-2 text-xs font-bold text-black align-middle print-col-score" style={{ backgroundColor: theme.accentColor2 }}>
                   Usual Perf Score
                 </th>
-                <th rowSpan="3" className="border-b border-l px-2 py-2 text-xs font-bold text-black align-middle print-col-code">
+                <th rowSpan="3" className="border-b border-l px-2 py-2 text-xs font-bold text-black align-middle print-col-code" style={{ backgroundColor: theme.accentColor2 }}>
                   Other Codes for Evaluation
                 </th>
               </tr>
@@ -461,7 +466,7 @@
                 {visibleRoles.map((role) => (
                   <Fragment key={`${role.key}-days`}>
                     {DAY_HEADERS.map((day) => (
-                      <th key={`${role.key}-${day}`} colSpan="3" className={`border-b border-l px-1 py-1 text-xs font-bold text-black ${role.key === 'secondary' ? 'bg-green-50' : 'bg-blue-50'}`}>
+                      <th key={`${role.key}-${day}`} colSpan="3" className="border-b border-l px-1 py-1 text-xs font-bold text-black" style={{ backgroundColor: role.key === 'secondary' ? theme.accentColor2 + 'aa' : theme.accentColor1 + 'aa' }}>
                         {day}
                       </th>
                     ))}
@@ -488,7 +493,7 @@
               {Object.entries(itemsByGroup).map(([groupName, items]) => (
                 <Fragment key={groupName}>
                   <tr>
-                    <td colSpan={totalColumns} className="bg-gray-200 px-3 py-2 text-sm font-bold text-black">
+                    <td colSpan={totalColumns} className="px-3 py-2 text-sm font-bold text-black" style={{ backgroundColor: theme.subHeadingColor }}>
                       {groupName}
                     </td>
                   </tr>
@@ -564,7 +569,7 @@
     };
 
     const App = () => {
-      const theme = readTheme();
+      const [theme, setTheme] = useState(readTheme);
       const [scores, setScores] = useState(() => normalizeScores(readJsonStorage(STORAGE_KEYS.scores, createInitialScores())));
       const [headerData, setHeaderData] = useState(() => readJsonStorage(STORAGE_KEYS.header, INITIAL_HEADER_DATA));
       const [reviewerSummary, setReviewerSummary] = useState(() => localStorage.getItem(STORAGE_KEYS.reviewerSummary) || '');
@@ -577,6 +582,11 @@
       useEffect(() => writeJsonStorage(STORAGE_KEYS.scores, normalizeScores(scores)), [scores]);
       useEffect(() => writeJsonStorage(STORAGE_KEYS.header, headerData), [headerData]);
       useEffect(() => localStorage.setItem(STORAGE_KEYS.reviewerSummary, reviewerSummary), [reviewerSummary]);
+      useEffect(() => {
+        const handleStorage = (e) => { if (e.key === STORAGE_KEYS.theme) setTheme(readTheme()); };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+      }, []);
 
       const getSerializedData = useCallback(() => {
         const lines = [
@@ -641,9 +651,9 @@
       const neutralButtonStyle = { backgroundColor: '#e5e7eb', color: '#000000' };
 
       return (
-        <AppContext.Provider value={{ scores, setScores, showSecondaryRole, inputRefs }}>
+        <AppContext.Provider value={{ scores, setScores, showSecondaryRole, inputRefs, theme }}>
           <div className="min-h-screen" style={{ backgroundColor: theme.wallpaperColor }}>
-            <div className="max-w-screen-2xl mx-auto px-2 py-2 md:px-3 md:py-3 print-container" style={{ backgroundColor: theme.pageColor }}>
+            <div className="max-w-screen-2xl mx-auto px-2 py-2 md:px-3 md:py-3 print-container" style={{ backgroundColor: theme.wallpaperColor }}>
               <div className="hidden print:block print-header-info">
                 <h1 className="text-xl font-bold">Medicare GG 3-Day Assessment</h1>
                 <div><strong>Resident:</strong> {headerData.residentName || 'N/A'}</div>
